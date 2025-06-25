@@ -64,7 +64,7 @@ No external backend needed - everything runs client-side.
 
 6. **Start development server**
    ```bash
-   npm start
+   npm run dev
    ```
 
 Visit http://localhost:5173/ to view the app.
