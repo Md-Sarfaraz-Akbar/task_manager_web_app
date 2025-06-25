@@ -62,6 +62,7 @@ No external backend needed - everything runs client-side.
    @tailwind utilities;
    ```
 
+
 6. **Start development server**
    ```bash
    npm run dev
