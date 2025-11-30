@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, Check, Trash2, Edit3, Save, X, Calendar, User, List } from 'lucide-react';
 
 export default function TaskManager() {
@@ -12,78 +12,87 @@ export default function TaskManager() {
     priority: 'medium',
     dueDate: ''
   });
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load tasks from memory on component mount
+  // Load tasks from localStorage on component mount
   useEffect(() => {
     const savedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
     setTasks(savedTasks);
+    setIsInitialized(true);
   }, []);
 
-  // Save tasks to memory whenever tasks change
-
+  // Save tasks to localStorage whenever tasks change (but only after initial load)
   useEffect(() => {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-  }, [tasks]);
+    if (isInitialized) {
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
+  }, [tasks, isInitialized]);
 
-  const addTask = () => {
+  const addTask = useCallback(() => {
     if (newTask.title.trim()) {
       const task = {
         id: Date.now(),
         ...newTask,
         completed: false,
         createdAt: new Date().toISOString()
-        
       };
-      setTasks([...tasks, task]);
+      setTasks(prevTasks => [...prevTasks, task]);
       setNewTask({ title: '', description: '', priority: 'medium', dueDate: '' });
       setShowAddForm(false);
     }
-  };
+  }, [newTask]);
 
-  const toggleTask = (id) => {
-    setTasks(tasks.map(task => 
+  const toggleTask = useCallback((id) => {
+    setTasks(prevTasks => prevTasks.map(task => 
       task.id === id ? { ...task, completed: !task.completed } : task
     ));
-  };
+  }, []);
 
-  const deleteTask = (id) => {
-    setTasks(tasks.filter(task => task.id !== id));
-  };
+  const deleteTask = useCallback((id) => {
+    setTasks(prevTasks => prevTasks.filter(task => task.id !== id));
+  }, []);
 
-  const startEditing = (task) => {
+  const startEditing = useCallback((task) => {
     setEditingTask({ ...task });
-  };
+  }, []);
 
-  const saveEdit = () => {
-    setTasks(tasks.map(task => 
-      task.id === editingTask.id ? editingTask : task
+  const saveEdit = useCallback(() => {
+    setTasks(prevTasks => prevTasks.map(task => 
+      task.id === editingTask?.id ? editingTask : task
     ));
     setEditingTask(null);
-  };
+  }, [editingTask]);
 
-  const cancelEdit = () => {
+  const cancelEdit = useCallback(() => {
     setEditingTask(null);
-  };
+  }, []);
 
-  const filteredTasks = tasks.filter(task => {
-    if (filter === 'completed') return task.completed;
-    if (filter === 'pending') return !task.completed;
-    return true;
-  });
+  // Memoize filtered tasks to avoid recalculation on every render
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      if (filter === 'completed') return task.completed;
+      if (filter === 'pending') return !task.completed;
+      return true;
+    });
+  }, [tasks, filter]);
 
-  const stats = {
-    total: tasks.length,
-    completed: tasks.filter(t => t.completed).length,
-    pending: tasks.filter(t => !t.completed).length
-  };
+  // Optimize stats calculation with a single iteration instead of multiple filter calls
+  const stats = useMemo(() => {
+    const completed = tasks.reduce((count, task) => count + (task.completed ? 1 : 0), 0);
+    return {
+      total: tasks.length,
+      completed,
+      pending: tasks.length - completed
+    };
+  }, [tasks]);
 
-  const getPriorityColor = (priority) => {
+  const getPriorityColor = useCallback((priority) => {
     switch (priority) {
       case 'high': return 'bg-red-100 text-red-800';
       case 'low': return 'bg-green-100 text-green-800';
       default: return 'bg-yellow-100 text-yellow-800';
     }
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
